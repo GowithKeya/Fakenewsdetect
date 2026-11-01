@@ -1,0 +1,51 @@
+robinho:
+  working_directory: ~/monorepo/robinho
+  docker:
+    - image: docker
+  steps:
+    - checkout: { path: ~/monorepo }
+    - attach_workspace: { at: . }
+    - setup_remote_docker
+    - run:
+        name: check for changes
+        command: |
+          if [ -z "$FORCE_DEPLOY" ] && [ ! -e .project-metadata/.robinho-changed ]; then
+            echo "robinho has not changed, skipping build"
+            circleci step halt
+          fi
+    - run:
+        name: fetch existing image
+        command: docker pull fakenewsdetector/robinho
+    - run:
+        name: build
+        command: docker build --build-arg CACHEBUST=$(date +%s) --cache-from fakenewsdetector/robinho -t fakenewsdetector/robinho .
+    - run:
+        name: run style check
+        command: docker run --rm fakenewsdetector/robinho flake8 robinho/
+    - run:
+        name: run tests
+        command: docker run --rm fakenewsdetector/robinho python3 -m unittest
+    - deploy:
+        name: deploy
+        command: |
+          if [ "${CIRCLE_BRANCH}" == "master" ]; then
+            echo $DOCKERHUB_PASS | docker login --username=$DOCKERHUB_USER --password-stdin
+            docker push fakenewsdetector/robinho
+
+            echo $HEROKU_KEY | docker login --username=_  --password-stdin registry.heroku.com
+            docker tag fakenewsdetector/robinho registry.heroku.com/robinho/web
+            docker push registry.heroku.com/robinho/web
+
+            docker run --rm fakenewsdetector/robinho curl -n -X PATCH https://api.heroku.com/apps/robinho/formation \
+              -d "{
+              \"updates\": [
+                {
+                  \"type\": \"web\",
+                  \"docker_image\": \"$(docker inspect registry.heroku.com/robinho/web --format={{.Id}})\"
+                }
+              ]
+            }" \
+              -H "Content-Type: application/json" \
+              -H "Accept: application/vnd.heroku+json; version=3.docker-releases" \
+              -H "Authorization: Bearer $HEROKU_KEY"
+          fi

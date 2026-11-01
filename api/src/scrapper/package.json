@@ -1,0 +1,23 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "description": "[![Build Status][ci-svg]][ci-url]",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fake-news-detector/fake-news-detector.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/fake-news-detector/fake-news-detector/issues"
+  },
+  "homepage": "https://github.com/fake-news-detector/fake-news-detector/tree/master/api#readme",
+  "dependencies": {
+    "axios": "^0.17.0",
+    "unfluff": "^3.0.0"
+  }
+}

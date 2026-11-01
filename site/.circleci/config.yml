@@ -1,0 +1,45 @@
+site:
+  working_directory: ~/monorepo/site
+  docker:
+    - image: circleci/node:8
+  steps:
+    - checkout: { path: ~/monorepo }
+    - attach_workspace: { at: . }
+    - run:
+        name: check for changes
+        command: |
+          if [ ! -e .project-metadata/.site-changed ]; then
+            echo "site has not changed, skipping build"
+            circleci step halt
+          fi
+    - restore_cache:
+        key: npm-dependencies-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
+    - run:
+        name: install-dependencies
+        command: npm install
+    - save_cache:
+        key: npm-dependencies-{{ checksum "package.json" }}-{{ checksum "package-lock.json" }}
+        paths:
+        - node_modules
+    - restore_cache:
+        key: elm-dependencies-build-{{ checksum "elm-package.json" }}-{{ checksum "test/elm-package.json" }}
+    - run:
+        name: compile
+        command: ./node_modules/.bin/elm-make src/Main.elm
+    - run:
+        name: test
+        command: npm test
+    - save_cache:
+        key: elm-dependencies-build-{{ checksum "elm-package.json" }}-{{ checksum "test/elm-package.json" }}
+        paths:
+        - elm-stuff
+        - test/elm-stuff
+    - run:
+        name: build
+        command: npm run build
+    - deploy:
+        name: deploy
+        command: |
+          if [ "${CIRCLE_BRANCH}" == "master" ]; then
+            npm run deploy
+          fi
